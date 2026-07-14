@@ -15,6 +15,8 @@ import {
   type ContactSubmission,
   type InsertContactSubmission
 } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 export interface IStorage {
   // Users
@@ -292,4 +294,222 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  constructor() {
+    this.seedIfEmpty();
+  }
+
+  async seedIfEmpty() {
+    if (!db) return;
+    try {
+      const existingProducts = await db.select().from(products).limit(1);
+      if (existingProducts.length === 0) {
+        console.log("Database is empty. Starting self-seeding routine...");
+        
+        // Seed Products
+        await db.insert(products).values([
+          {
+            name: "Environmental Monitoring System",
+            slug: "environmental-monitoring-system",
+            description: "Real-time environmental parameter monitoring with automated alerts, trend analysis, and comprehensive audit trails for cleanroom and controlled environments.",
+            features: [
+              "Temperature Monitoring",
+              "Humidity Control", 
+              "Air Pressure",
+              "Trend Analysis",
+              "Real-time Alerts",
+              "Automated Reports",
+              "21 CFR Part 11 Compliance"
+            ],
+            imageUrl: "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400",
+            datasheetUrl: "/downloads/environmental-monitoring-datasheet.pdf",
+            complianceLevel: "21 CFR Part 11",
+            category: "monitoring",
+            isActive: true,
+          },
+          {
+            name: "Microbial Assay Zone Reader",
+            slug: "microbial-assay-zone-reader",
+            description: "Automated zone reading and analysis for antimicrobial susceptibility testing with digital documentation and regulatory-compliant reporting.",
+            features: [
+              "Automated Reading",
+              "MIC Calculation",
+              "Digital Reports",
+              "Data Integrity",
+              "Zone Measurement",
+              "Statistical Analysis",
+              "21 CFR Part 11 Compliance"
+            ],
+            imageUrl: "https://images.unsplash.com/photo-1559757148-5c350d0d3c56?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&h=400",
+            datasheetUrl: "/downloads/microbial-assay-datasheet.pdf",
+            complianceLevel: "21 CFR Part 11",
+            category: "analysis",
+            isActive: true,
+          }
+        ]);
+
+        // Seed Case Studies
+        await db.insert(caseStudies).values([
+          {
+            title: "Global Pharma Corp",
+            slug: "global-pharma-corp",
+            industry: "Pharmaceutical Manufacturing",
+            description: "Reduced audit preparation time by 75% while maintaining 100% compliance across 12 manufacturing sites.",
+            content: "Detailed case study content about Global Pharma Corp implementation...",
+            imageUrl: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=250",
+            metrics: {
+              timeSaved: "75%",
+              sites: "12",
+              complianceRate: "100%"
+            },
+            isActive: true,
+          },
+          {
+            title: "BioInnovate Labs",
+            slug: "bioinnovate-labs",
+            industry: "Biotech Research",
+            description: "Streamlined clinical trial data management with automated compliance monitoring and real-time reporting.",
+            content: "Detailed case study content about BioInnovate Labs implementation...",
+            imageUrl: "https://images.unsplash.com/photo-1582719471384-894fbb16e074?ixlib=rb-4.0.3&auto=format&fit=crop&w=400&h=250",
+            metrics: {
+              reportSpeed: "90%",
+              monitoring: "24/7",
+              efficiency: "85%"
+            },
+            isActive: true,
+          }
+        ]);
+
+        // Seed Blog Posts
+        await db.insert(blogPosts).values([
+          {
+            title: "Understanding FDA 21 CFR Part 11 Compliance",
+            slug: "understanding-fda-21-cfr-part-11-compliance",
+            excerpt: "A comprehensive guide to understanding and implementing FDA 21 CFR Part 11 compliance in your organization.",
+            content: "Detailed blog post content about FDA compliance...",
+            imageUrl: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&h=400",
+            category: "compliance",
+            tags: ["FDA", "Compliance", "Regulation"],
+            isPublished: true,
+          }
+        ]);
+
+        console.log("Self-seeding completed successfully.");
+      } else {
+        console.log("Database already contains data. Skipping seeding.");
+      }
+    } catch (err) {
+      console.error("Error during database self-seeding:", err);
+    }
+  }
+
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    if (!db) throw new Error("Database not initialized");
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    if (!db) throw new Error("Database not initialized");
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    if (!db) throw new Error("Database not initialized");
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
+  }
+  
+  // Product methods
+  async getProducts(): Promise<Product[]> {
+    if (!db) throw new Error("Database not initialized");
+    return db.select().from(products).where(eq(products.isActive, true));
+  }
+  
+  async getProduct(id: number): Promise<Product | undefined> {
+    if (!db) throw new Error("Database not initialized");
+    const [product] = await db.select().from(products).where(eq(products.id, id));
+    return product && product.isActive ? product : undefined;
+  }
+  
+  async getProductBySlug(slug: string): Promise<Product | undefined> {
+    if (!db) throw new Error("Database not initialized");
+    const [product] = await db.select().from(products).where(eq(products.slug, slug));
+    return product && product.isActive ? product : undefined;
+  }
+  
+  async createProduct(insertProduct: InsertProduct): Promise<Product> {
+    if (!db) throw new Error("Database not initialized");
+    const [product] = await db.insert(products).values(insertProduct).returning();
+    return product;
+  }
+  
+  // Case Study methods
+  async getCaseStudies(): Promise<CaseStudy[]> {
+    if (!db) throw new Error("Database not initialized");
+    return db.select().from(caseStudies).where(eq(caseStudies.isActive, true));
+  }
+  
+  async getCaseStudy(id: number): Promise<CaseStudy | undefined> {
+    if (!db) throw new Error("Database not initialized");
+    const [caseStudy] = await db.select().from(caseStudies).where(eq(caseStudies.id, id));
+    return caseStudy && caseStudy.isActive ? caseStudy : undefined;
+  }
+  
+  async getCaseStudyBySlug(slug: string): Promise<CaseStudy | undefined> {
+    if (!db) throw new Error("Database not initialized");
+    const [caseStudy] = await db.select().from(caseStudies).where(eq(caseStudies.slug, slug));
+    return caseStudy && caseStudy.isActive ? caseStudy : undefined;
+  }
+  
+  async createCaseStudy(insertCaseStudy: InsertCaseStudy): Promise<CaseStudy> {
+    if (!db) throw new Error("Database not initialized");
+    const [caseStudy] = await db.insert(caseStudies).values(insertCaseStudy).returning();
+    return caseStudy;
+  }
+  
+  // Blog Post methods
+  async getBlogPosts(): Promise<BlogPost[]> {
+    if (!db) throw new Error("Database not initialized");
+    return db.select().from(blogPosts);
+  }
+  
+  async getPublishedBlogPosts(): Promise<BlogPost[]> {
+    if (!db) throw new Error("Database not initialized");
+    return db.select().from(blogPosts).where(eq(blogPosts.isPublished, true));
+  }
+  
+  async getBlogPost(id: number): Promise<BlogPost | undefined> {
+    if (!db) throw new Error("Database not initialized");
+    const [blogPost] = await db.select().from(blogPosts).where(eq(blogPosts.id, id));
+    return blogPost;
+  }
+  
+  async getBlogPostBySlug(slug: string): Promise<BlogPost | undefined> {
+    if (!db) throw new Error("Database not initialized");
+    const [blogPost] = await db.select().from(blogPosts).where(eq(blogPosts.slug, slug));
+    return blogPost && blogPost.isPublished ? blogPost : undefined;
+  }
+  
+  async createBlogPost(insertBlogPost: InsertBlogPost): Promise<BlogPost> {
+    if (!db) throw new Error("Database not initialized");
+    const [blogPost] = await db.insert(blogPosts).values(insertBlogPost).returning();
+    return blogPost;
+  }
+  
+  // Contact Submission methods
+  async getContactSubmissions(): Promise<ContactSubmission[]> {
+    if (!db) throw new Error("Database not initialized");
+    return db.select().from(contactSubmissions);
+  }
+  
+  async createContactSubmission(insertSubmission: InsertContactSubmission): Promise<ContactSubmission> {
+    if (!db) throw new Error("Database not initialized");
+    const [submission] = await db.insert(contactSubmissions).values(insertSubmission).returning();
+    return submission;
+  }
+}
+
+export const storage = process.env.DATABASE_URL ? new DatabaseStorage() : new MemStorage();
