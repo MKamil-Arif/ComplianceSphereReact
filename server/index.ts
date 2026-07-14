@@ -56,10 +56,13 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // Serve the app on the assigned PORT or fall back to 5000.
-  const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
-  server.listen(port, "0.0.0.0", () => {
-    log(`serving on http://0.0.0.0:${port}`);
-  });
-
+  // Serve the app on the assigned PORT or fall back to 5000 (only if not on Vercel).
+  if (!process.env.VERCEL) {
+    const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
+    server.listen(port, "0.0.0.0", () => {
+      log(`serving on http://0.0.0.0:${port}`);
+    });
+  }
 })();
+
+export default app;
